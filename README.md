@@ -1,7 +1,5 @@
 # Bayesian Statistics - Project Rubric
 
-**IMPORTANT: If the analysis is completed using software other than R, or not written up using R Markdown, the project should receive a 0 regardless of its content.**
-
 ### Part 1: Data (2 points)
 - 1 pt for correct reasoning for generabizability – Answer should discuss whether random sampling was used. Learners might discuss any reservations, those should be well justified.
 - 1 pt for correct reasoning for causality – Answer should discuss whether random assignment was used.
