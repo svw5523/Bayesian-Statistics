@@ -1,0 +1,136 @@
+---
+title: "Bayesian modeling and prediction for movies"
+author: "Shaohan Wang"
+date: "08/24/2020"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Front Matter
+
+```{r message=FALSE, warning=FALSE}
+# clean up workspace environment
+rm(list = ls())
+```
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+library(BAS)
+library(broom)
+library(MASS)
+```
+
+### Load data
+
+```{r load-data}
+load("movies.Rdata")
+```
+
+### Guiding Question
+
+**Develop a Bayesian regression model to predict audience_score from the following explanatory variables.**
+
+* * *
+
+## Part 1: Data
+* movies dataset has 651 observations with 32 variables and include randomly sampled movies produced and released before 2016.
+
+* Each case here corresponds to an individual movie with detailed information. This dataset are collected mainly based on observations from `Rotten Tomatoes` and `IMDB` for a random sample of movies which means there is no random assignment, so we `cannot establish causality`. Besides, because the movies included are randomly selected, we can `conclude generalizability` to all of movies produced and released before 2016. However, we may consider convenience sampling bias here because some movies' information may be much easier to obtain. 
+
+* * *
+
+## Part 2: Data manipulation
+
+```{r message=FALSE, warning=FALSE}
+movies <-  
+  movies %>%
+  mutate(feature_film = ifelse(test = title_type == 'Feature Film', 'YES', 'NO'),
+         drama = ifelse(genre == 'Drama', 'YES', 'NO'),
+         mpaa_rating_R = ifelse(mpaa_rating == 'R', 'YES', 'NO'),
+         oscar_season = ifelse(thtr_rel_month == c(10,11,12), 'YES', 'NO'),
+         summer_season = ifelse(thtr_rel_month == c(5,6,7,8), 'YES', 'NO'))
+
+names(movies)
+```
+* create new variables using the `mutate` function in the dplyr package
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+```{r}
+# inspect the dataset 
+glimpse(movies)
+
+# visualization of audience_score
+movies %>%
+  ggplot(aes(x = audience_score)) +
+  geom_histogram() 
+
+# summary of audience_score
+summary(movies$audience_score)
+table(movies$audience_score)
+```
+
+* According to the graph, `audience_score` on Rotten Tomatoes collected in this dataset is left_skewed, meaning that more movies have actually received higher `audience_score` than the average score. The mean of `audience score` is 65 and around 25% movies' `audience_score` is higher than 80. 
+
+* * *
+
+## Part 4: Modeling
+
+```{r}
+movies <- na.omit(movies) # exclude NA
+
+# set the model by applying BMA to the audience_score using all potential predictors
+bma_movies <- bas.lm(audience_score ~ feature_film + drama + runtime + mpaa_rating_R + thtr_rel_year + oscar_season + summer_season + imdb_rating + imdb_num_votes + critics_score + best_pic_nom + best_pic_win + best_actor_win + best_actress_win + best_dir_win + top200_box, data = movies, prior = 'BIC', modelprior = uniform())
+
+# Top 5 most probably models
+summary(bma_movies) # we will pick the best model (model1) with highest posterior prob and highest Bayes factor
+
+# set our final model
+bma_movies_final <- bas.lm(audience_score ~ runtime + imdb_rating + critics_score, data = movies, prior = 'BIC', modelprior = uniform()) # we include the predictors which provide the best prediction
+
+summary(bma_movies_final) # check our final model with all predictors
+```
+* We set our Bayesian multiple regression model with the possible predictors by Bayesian Model Average based on prior on Bayesoan Information Criterion(BIC). Then, we use `summary` function to find the best 5 models with highest posterior prob and highest Bayes factors. We pick the best one with the predictors which have high posterior prob to be included in our final model and drop other statistically insignificant regressors. Then, we also use the `summary` table to double check the posterior prob and Bayes factors and thus, find out that our current model has the best goodness of fit.
+
+```{r}
+# Obtain the coefficients from the model `bma_movies_final`
+coef_bma_movies_final <- coefficients(bma_movies_final)
+
+plot(coef_bma_movies_final, subset = c(2,3,4), ask = FALSE) # plot the posterior distribution of coefficients of our predictors for diagnostic
+
+coef(bma_movies_final) %>%
+  confint() # the coefficients with 95% credible intervals
+```
+
+* The predictors included in final model are `runtime`, `imdb_rating`, `critics_score` and we plot the posterior prob for each of the corresponding coefficients. For each additional minute of `runtime`, there is 95% chance that the `audience_score` on Rotten Tomatoes will decrease by 0.08752 or increase by 0. For each additional one point of `imdb_rating`, there is 95% chance that the `audience_score` on Rotten Tomatoes will increase by 13.50248 to 16.4304. For each additional one point of `critics_score`, there is 95% chance that the `audience_score` on Rotten Tomatoes will increase by 0 to 0.1123.  
+
+* * *
+
+## Part 5: Prediction
+
+```{r}
+# Pick a movie from 2016
+Zootopia <- data.frame(runtime = 108, imdb_rating = 8.0, critics_score = 98)
+
+# do the prediction by our model
+predict(bma_movies_final, Zootopia)
+```
+* I choose Zootopia(2016) to do the prediction by using our bayesian multiple regression model by Bayesian Model Average based on prior on Bayesoan Information Criterion(BIC). The fitted value I obtain is around **87.61**. The actual audience score is **92** which is a little higher than our predicted audience score on Rotten Tomatoes.
+
+* * *
+
+## Part 6: Conclusion
+* In conclusion, there is definitely an association among audience scores on Rotten Tomatoes and runtime of movie, ratings on IMDB, critics score on Rotten Tomatoes. Because of the low posterior prob and Bayes factors for our original explanatory variables, I decided to exclude them when building the final Bayesian multiple regression model based on Bayesian Model Averaging. 
+
+* However, our final model still presents a shortcoming because there is a noticeable difference between our predicted audience score and the actual audience score on Rotten Tomatoes. I believe one of the solutions is to add more appropriate and statistically significant explanatory variables which will help the full model yield smaller BIC and better goodness of fit with higher complexity. 
