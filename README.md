@@ -1,4 +1,4 @@
-# Bayesian Statistics - Project Rubric
+# Bayesian Statistics - Project Rubric (Statistics with R Specialization Coursera)
 
 ### Part 1: Data (2 points)
 - 1 pt for correct reasoning for generabizability – Answer should discuss whether random sampling was used. Learners might discuss any reservations, those should be well justified.
